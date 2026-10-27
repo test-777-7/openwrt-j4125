@@ -54,6 +54,27 @@ jobs:
       run: |
         [ -e .config ] && cp .config openwrt/.config
         cd openwrt
+
+        # 1. 默认管理 IP 改为 192.168.50.1
+        sed -i 's/192.168.1.1/192.168.50.1/g' package/base-files/files/bin/config_generate
+
+        # 2. 默认 root 密码设为 winds522
+        PASS_HASH=$(openssl passwd -1 'winds522')
+        sed -i "s|root:::0:99999:7:::|root:${PASS_HASH}:0:99999:7:::|g" package/base-files/files/etc/shadow
+
+        # 3. 默认 LAN 设为 eth0，WAN 设为 eth1
+        mkdir -p files/etc/uci-defaults
+        cat << 'EOF' > files/etc/uci-defaults/99-custom-network
+        uci -q batch << EOI
+        set network.lan.device='eth0'
+        set network.wan.device='eth1'
+        set network.wan6.device='eth1'
+        commit network
+        EOI
+        exit 0
+        EOF
+        chmod +x files/etc/uci-defaults/99-custom-network
+
         make defconfig
 
     - name: Download package
@@ -88,12 +109,14 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: J4125-release
-        name: OpenWrt J4125 (OpenClash + WireGuard)
+        name: OpenWrt J4125 (OpenClash + WireGuard + UPnP + WOL)
         body: |
-          ### J4125 精简专用固件 (Intel i210 + OpenClash + WireGuard)
+          ### J4125 专用固件 (Intel i210 + 内核原生 WireGuard + UPnP + WOL)
           - **适用硬件**: Intel J4125 / Intel i210 千兆网卡
+          - **网口默认配置**: WAN 对应 eth1，LAN 对应 eth0
           - **核心驱动**: kmod-igb, kmod-e1000e, AES 硬件加速
-          - **集成插件**: OpenClash, WireGuard, Argon 主题
-          - **管理后台**: 192.168.1.1 (默认无密码)
+          - **原生组件**: 内核级 kmod-wireguard, UPnP, 网络唤醒(WOL), OpenClash, Argon 主题
+          - **管理后台**: http://192.168.50.1
+          - **默认账号/密码**: root / winds522
           - **建议写入**: 推荐使用 combined-efi.img.gz
         files: ${{ env.FIRMWARE }}/*combined-efi.img.gz
