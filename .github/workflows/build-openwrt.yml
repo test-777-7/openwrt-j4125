@@ -55,17 +55,17 @@ jobs:
         [ -e .config ] && cp .config openwrt/.config
         cd openwrt
 
-        # 1. 默认管理 IP 保持 192.168.50.1
+        # 1. 默认管理 IP 设为 192.168.50.1
         sed -i 's/192.168.1.1/192.168.50.1/g' package/base-files/files/bin/config_generate
 
-        # 2. 生成系统原生密码与无网桥单口网络配置
+        # 2. 系统原生标准命令设置 root 密码为 winds522，固化纯 IPv4 单口网络
         mkdir -p files/etc/uci-defaults
         cat << 'EOF' > files/etc/uci-defaults/99-custom-settings
         #!/bin/sh
-        # 使用 OpenWrt 原生算法精确设置 root 密码为 winds522
+        # 原生 chpasswd 设置密码，杜绝哈希死锁
         echo "root:winds522" | chpasswd
 
-        # 单物理口配置：LAN 绑定 eth0，WAN 绑定 eth1 (不用网桥)
+        # 单物理口直连：LAN 绑定 eth0，WAN 绑定 eth1 (无网桥)
         uci -q batch << EOI
         set network.lan.device='eth0'
         set network.lan.proto='static'
@@ -76,7 +76,10 @@ jobs:
         set network.wan.device='eth1'
         delete network.wan6
 
-        # 彻底关闭 IPv6 通告与服务
+        # 彻底移除 IPv6 委托前缀，清除警告
+        delete network.globals.ula_prefix
+
+        # 彻底关闭 IPv6 通告与 DHCPv6 服务
         delete dhcp.lan.dhcpv6
         delete dhcp.lan.ra
         delete dhcp.lan.ra_slaac
@@ -127,10 +130,10 @@ jobs:
         name: OpenWrt J4125 (IPv4 Only + OpenClash + WireGuard + UPnP + WOL + TTYD)
         body: |
           ### J4125 专用固件 (纯 IPv4 + Intel + Realtek + 无网桥单口)
-          - **网络模式**: 纯 IPv4 (无 wan6，关闭 DHCPv6 广播)
-          - **单口网络**: LAN 直绑 eth0，WAN 直绑 eth1 (无网桥)
-          - **驱动支持**: Intel i210(igb), e1000e, Realtek 全系列(r8125 2.5G/r8168/r8169/r8152)
+          - **网络模式**: 纯 IPv4 (无 wan6，无 IPv6 广播)
+          - **单口网络**: LAN 绑定 eth0，WAN 绑定 eth1
+          - **硬件驱动**: Intel i210(igb), e1000e, Realtek 全系列(r8125 2.5G/r8168/r8169/r8152), glk 核显固件
           - **集成插件**: OpenClash, 原生内核 WireGuard, UPnP, WOL, TTYD 网页终端, Argon 主题
           - **管理后台**: http://192.168.50.1
-          - **登录密码**: winds522 (原生算法生成)
+          - **登录密码**: winds522
         files: ${{ env.FIRMWARE }}/*combined-efi.img.gz
