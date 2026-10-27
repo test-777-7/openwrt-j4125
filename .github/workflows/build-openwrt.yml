@@ -49,6 +49,9 @@ jobs:
         cd openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
+        # 强制显式安装 luci-compat 和 luci-lua-runtime
+        ./scripts/feeds install luci-compat
+        ./scripts/feeds install luci-lua-runtime
 
     - name: Load custom configuration
       run: |
@@ -133,6 +136,7 @@ jobs:
           - **网络模式**: 纯 IPv4 (无 wan6，无 IPv6 广播)
           - **单口网络**: LAN 绑定 eth0，WAN 绑定 eth1
           - **硬件驱动**: Intel i210(igb), e1000e, Realtek 全系列(r8125 2.5G/r8168/r8169/r8152), glk 核显固件
+          - **核心修复**: 内置 luci-compat 兼容层，彻底解决 OpenClash 菜单崩溃问题
           - **集成插件**: OpenClash, 原生内核 WireGuard, UPnP, WOL, TTYD 网页终端, Argon 主题
           - **管理后台**: http://192.168.50.1
           - **登录密码**: winds522
